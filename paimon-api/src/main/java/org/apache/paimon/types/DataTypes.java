@@ -123,6 +123,10 @@ public class DataTypes {
         return new MapType(keyType, valueType);
     }
 
+    public static MapType MAP(DataType keyType, int keyId, DataType valueType, int valueId) {
+        return new MapType(true, keyType, keyId, valueType, valueId);
+    }
+
     public static DataField FIELD(int id, String name, DataType type) {
         return new DataField(id, name, type);
     }

@@ -42,14 +42,27 @@ public class MapType extends DataType {
 
     public static final String FORMAT = "MAP<%s, %s>";
 
+    private final int keyId;
     private final DataType keyType;
 
+    private final int valueId;
     private final DataType valueType;
+
+    public MapType(
+            boolean isNullable, DataType keyType, int keyId, DataType valueType, int valueId) {
+        super(isNullable, DataTypeRoot.MAP);
+        this.keyType = Preconditions.checkNotNull(keyType, "Key type must not be null.");
+        this.valueType = Preconditions.checkNotNull(valueType, "Value type must not be null.");
+        this.keyId = keyId;
+        this.valueId = valueId;
+    }
 
     public MapType(boolean isNullable, DataType keyType, DataType valueType) {
         super(isNullable, DataTypeRoot.MAP);
         this.keyType = Preconditions.checkNotNull(keyType, "Key type must not be null.");
         this.valueType = Preconditions.checkNotNull(valueType, "Value type must not be null.");
+        this.keyId = -1;
+        this.valueId = -1;
     }
 
     public MapType(DataType keyType, DataType valueType) {
@@ -64,6 +77,14 @@ public class MapType extends DataType {
         return valueType;
     }
 
+    public int getKeyId() {
+        return keyId;
+    }
+
+    public int getValueId() {
+        return valueId;
+    }
+
     @Override
     public int defaultSize() {
         return keyType.defaultSize() + valueType.defaultSize();
@@ -71,7 +92,7 @@ public class MapType extends DataType {
 
     @Override
     public DataType copy(boolean isNullable) {
-        return new MapType(isNullable, keyType.copy(), valueType.copy());
+        return new MapType(isNullable, keyType.copy(), keyId, valueType.copy(), valueId);
     }
 
     public DataType newKeyValueType(DataType newKeyType, DataType newValueType) {

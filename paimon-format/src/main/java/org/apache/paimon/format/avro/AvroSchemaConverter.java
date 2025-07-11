@@ -19,6 +19,7 @@
 package org.apache.paimon.format.avro;
 
 import org.apache.paimon.types.ArrayType;
+import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataType;
 import org.apache.paimon.types.DataTypeRoot;
 import org.apache.paimon.types.DecimalType;
@@ -33,12 +34,15 @@ import org.apache.paimon.types.TimestampType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.avro.SchemaBuilder.FieldBuilder;
 
 import java.util.List;
 import java.util.Map;
 
 /** Converts an Avro schema into Paimon's type information. */
 public class AvroSchemaConverter {
+
+    private static final String ICEBERG = "manifest_entry";
 
     private AvroSchemaConverter() {
         // private
@@ -163,15 +167,16 @@ public class AvroSchemaConverter {
                 return nullable ? nullableSchema(decimal) : decimal;
             case ROW:
                 RowType rowType = (RowType) dataType;
-                List<String> fieldNames = rowType.getFieldNames();
+                List<DataField> fields = rowType.getFields();
                 // we have to make sure the record name is different in a Schema
                 SchemaBuilder.FieldAssembler<Schema> builder =
                         SchemaBuilder.builder().record(rowName).fields();
                 for (int i = 0; i < rowType.getFieldCount(); i++) {
-                    String fieldName = fieldNames.get(i);
+                    String fieldName = fields.get(i).name();
                     DataType fieldType = rowType.getTypeAt(i);
                     SchemaBuilder.GenericDefault<Schema> fieldBuilder =
                             builder.name(fieldName)
+                                    .prop("field-id", fields.get(i).id())
                                     .type(
                                             convertToSchema(
                                                     fieldType,
@@ -189,25 +194,37 @@ public class AvroSchemaConverter {
             case MULTISET:
             case MAP:
                 DataType keyType = extractKeyTypeToAvroMap(dataType);
+                int keyId = extractKeyIdToAvroMap(dataType);
                 DataType valueType = extractValueTypeToAvroMap(dataType);
+                int valueId = extractValueIdToAvroMap(dataType);
                 Schema map;
                 if (isArrayMap(dataType)) {
                     // Avro only natively support map with string key.
                     // To represent a map with non-string key, we use an array containing several
                     // rows. The first field of a row is the key, and the second field is the value.
-                    SchemaBuilder.GenericDefault<Schema> kvBuilder =
-                            SchemaBuilder.builder()
-                                    .record(rowName)
-                                    .fields()
-                                    .name("key")
-                                    .type(
-                                            convertToSchema(
-                                                    keyType, rowName + "_key", rowNameMapping))
+
+                    if (keyId > 0 && valueId > 0) {
+                        rowName = "k" + keyId + "_v" + valueId;
+                    }
+
+                    FieldBuilder<Schema> key =
+                            SchemaBuilder.builder().record(rowName).fields().name("key");
+                    if (keyId > 0) {
+                        key.prop("field-id", keyId);
+                    }
+
+                    FieldBuilder<Schema> value =
+                            key.type(convertToSchema(keyType, rowName + "_key", rowNameMapping))
                                     .noDefault()
-                                    .name("value")
-                                    .type(
-                                            convertToSchema(
-                                                    valueType, rowName + "_value", rowNameMapping));
+                                    .name("value");
+                    if (valueId > 0) {
+                        value.prop("field-id", valueId);
+                    }
+
+                    SchemaBuilder.GenericDefault<Schema> kvBuilder =
+                            value.type(
+                                    convertToSchema(valueType, rowName + "_value", rowNameMapping));
+
                     SchemaBuilder.FieldAssembler<Schema> assembler =
                             valueType.isNullable()
                                     ? kvBuilder.withDefault(null)
@@ -264,6 +281,22 @@ public class AvroSchemaConverter {
         } else {
             return new IntType();
         }
+    }
+
+    public static int extractKeyIdToAvroMap(DataType type) {
+        if (type instanceof MapType) {
+            MapType mapType = (MapType) type;
+            return mapType.getKeyId();
+        }
+        return -1;
+    }
+
+    public static int extractValueIdToAvroMap(DataType type) {
+        if (type instanceof MapType) {
+            MapType mapType = (MapType) type;
+            return mapType.getValueId();
+        }
+        return -1;
     }
 
     /** Returns schema with nullable true. */

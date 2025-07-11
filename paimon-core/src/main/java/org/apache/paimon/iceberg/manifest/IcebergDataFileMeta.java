@@ -300,20 +300,27 @@ public class IcebergDataFileMeta {
                 new DataField(
                         110,
                         "null_value_counts",
-                        DataTypes.MAP(DataTypes.INT().notNull(), DataTypes.BIGINT().notNull())));
+                        DataTypes.MAP(
+                                DataTypes.INT().notNull(),
+                                121,
+                                DataTypes.BIGINT().notNull(),
+                                122)));
         fields.add(
                 new DataField(
                         125,
                         "lower_bounds",
-                        DataTypes.MAP(DataTypes.INT().notNull(), DataTypes.BYTES().notNull())));
+                        DataTypes.MAP(
+                                DataTypes.INT().notNull(), 126, DataTypes.BYTES().notNull(), 127)));
         fields.add(
                 new DataField(
                         128,
                         "upper_bounds",
-                        DataTypes.MAP(DataTypes.INT().notNull(), DataTypes.BYTES().notNull())));
+                        DataTypes.MAP(
+                                DataTypes.INT().notNull(), 129, DataTypes.BYTES().notNull(), 130)));
         fields.add(new DataField(143, "referenced_data_file", DataTypes.STRING()));
         fields.add(new DataField(144, "content_offset", DataTypes.BIGINT()));
         fields.add(new DataField(145, "content_size_in_bytes", DataTypes.BIGINT()));
+
         return new RowType(false, fields);
     }
 
