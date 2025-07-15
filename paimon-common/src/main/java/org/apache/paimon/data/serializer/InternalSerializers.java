@@ -18,6 +18,7 @@
 
 package org.apache.paimon.data.serializer;
 
+import org.apache.paimon.meta.MetaType;
 import org.apache.paimon.types.ArrayType;
 import org.apache.paimon.types.DataType;
 import org.apache.paimon.types.IntType;
@@ -44,8 +45,10 @@ public final class InternalSerializers {
     }
 
     private static Serializer<?> createInternal(DataType type) {
+
+        DataType origianlType = type instanceof MetaType ? ((MetaType) type).getDataType() : type;
         // ordered by type root definition
-        switch (type.getTypeRoot()) {
+        switch (origianlType.getTypeRoot()) {
             case CHAR:
             case VARCHAR:
                 return BinaryStringSerializer.INSTANCE;
@@ -55,7 +58,7 @@ public final class InternalSerializers {
             case VARBINARY:
                 return BinarySerializer.INSTANCE;
             case DECIMAL:
-                return new DecimalSerializer(getPrecision(type), getScale(type));
+                return new DecimalSerializer(getPrecision(origianlType), getScale(origianlType));
             case TINYINT:
                 return ByteSerializer.INSTANCE;
             case SMALLINT:
@@ -72,22 +75,23 @@ public final class InternalSerializers {
                 return DoubleSerializer.INSTANCE;
             case TIMESTAMP_WITHOUT_TIME_ZONE:
             case TIMESTAMP_WITH_LOCAL_TIME_ZONE:
-                return new TimestampSerializer(getPrecision(type));
+                return new TimestampSerializer(getPrecision(origianlType));
             case ARRAY:
-                return new InternalArraySerializer(((ArrayType) type).getElementType());
+                return new InternalArraySerializer(((ArrayType) origianlType).getElementType());
             case MULTISET:
                 return new InternalMapSerializer(
-                        ((MultisetType) type).getElementType(), new IntType(false));
+                        ((MultisetType) origianlType).getElementType(), new IntType(false));
             case MAP:
-                MapType mapType = (MapType) type;
+                MapType mapType = (MapType) origianlType;
                 return new InternalMapSerializer(mapType.getKeyType(), mapType.getValueType());
             case ROW:
-                return new InternalRowSerializer(getFieldTypes(type).toArray(new DataType[0]));
+                return new InternalRowSerializer(
+                        getFieldTypes(origianlType).toArray(new DataType[0]));
             case VARIANT:
                 return VariantSerializer.INSTANCE;
             default:
                 throw new UnsupportedOperationException(
-                        "Unsupported type '" + type + "' to get internal serializer");
+                        "Unsupported type '" + origianlType + "' to get internal serializer");
         }
     }
 

@@ -18,6 +18,7 @@
 
 package org.apache.paimon.format.avro;
 
+import org.apache.paimon.meta.MetaType;
 import org.apache.paimon.types.ArrayType;
 import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataType;
@@ -40,35 +41,41 @@ import static org.apache.paimon.types.DataTypeChecks.getPrecision;
 public interface AvroSchemaVisitor<T> {
 
     default T visit(Schema schema, DataType type) {
+        DataType origianlType = type instanceof MetaType ? ((MetaType) type).getDataType() : type;
         switch (schema.getType()) {
             case RECORD:
                 return visitRecord(
                         schema,
-                        type == null ? Collections.emptyList() : ((RowType) type).getFields());
+                        origianlType == null
+                                ? Collections.emptyList()
+                                : ((RowType) origianlType).getFields());
 
             case UNION:
-                return visitUnion(schema, type);
+                return visitUnion(schema, origianlType);
 
             case ARRAY:
-                if (type instanceof MapType) {
-                    MapType mapType = (MapType) type;
+                if (origianlType instanceof MapType) {
+                    MapType mapType = (MapType) origianlType;
                     return visitArrayMap(schema, mapType.getKeyType(), mapType.getValueType());
                 } else {
                     return visitArray(
-                            schema, type == null ? null : ((ArrayType) type).getElementType());
+                            schema,
+                            origianlType == null
+                                    ? null
+                                    : ((ArrayType) origianlType).getElementType());
                 }
 
             case MAP:
                 DataType valueType =
-                        type == null
+                        origianlType == null
                                 ? null
-                                : type instanceof MapType
-                                        ? ((MapType) type).getValueType()
+                                : origianlType instanceof MapType
+                                        ? ((MapType) origianlType).getValueType()
                                         : DataTypes.INT();
                 return visitMap(schema, valueType);
 
             default:
-                return primitive(schema, type);
+                return primitive(schema, origianlType);
         }
     }
 

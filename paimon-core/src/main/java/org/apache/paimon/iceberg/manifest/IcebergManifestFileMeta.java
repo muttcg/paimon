@@ -18,6 +18,7 @@
 
 package org.apache.paimon.iceberg.manifest;
 
+import org.apache.paimon.meta.MetaType;
 import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataTypes;
 import org.apache.paimon.types.RowType;
@@ -171,22 +172,32 @@ public class IcebergManifestFileMeta {
 
     private static RowType schemaForIcebergNew() {
         List<DataField> fields = new ArrayList<>();
-        fields.add(new DataField(500, "manifest_path", DataTypes.STRING().notNull()));
-        fields.add(new DataField(501, "manifest_length", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(502, "partition_spec_id", DataTypes.INT().notNull()));
-        fields.add(new DataField(517, "content", DataTypes.INT().notNull()));
-        fields.add(new DataField(515, "sequence_number", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(516, "min_sequence_number", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(503, "added_snapshot_id", DataTypes.BIGINT()));
-        fields.add(new DataField(504, "added_files_count", DataTypes.INT().notNull()));
-        fields.add(new DataField(505, "existing_files_count", DataTypes.INT().notNull()));
-        fields.add(new DataField(506, "deleted_files_count", DataTypes.INT().notNull()));
-        fields.add(new DataField(512, "added_rows_count", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(513, "existing_rows_count", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(514, "deleted_rows_count", DataTypes.BIGINT().notNull()));
+        fields.add(IcebergSchemaField.create(500, "manifest_path", DataTypes.STRING().notNull()));
+        fields.add(IcebergSchemaField.create(501, "manifest_length", DataTypes.BIGINT().notNull()));
+        fields.add(IcebergSchemaField.create(502, "partition_spec_id", DataTypes.INT().notNull()));
+        fields.add(IcebergSchemaField.create(517, "content", DataTypes.INT().notNull()));
+        fields.add(IcebergSchemaField.create(515, "sequence_number", DataTypes.BIGINT().notNull()));
         fields.add(
-                new DataField(
-                        508, "partitions", DataTypes.ARRAY(IcebergPartitionSummary.schema())));
+                IcebergSchemaField.create(
+                        516, "min_sequence_number", DataTypes.BIGINT().notNull()));
+        fields.add(IcebergSchemaField.create(503, "added_snapshot_id", DataTypes.BIGINT()));
+        fields.add(IcebergSchemaField.create(504, "added_files_count", DataTypes.INT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(505, "existing_files_count", DataTypes.INT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(506, "deleted_files_count", DataTypes.INT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(512, "added_rows_count", DataTypes.BIGINT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(
+                        513, "existing_rows_count", DataTypes.BIGINT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(514, "deleted_rows_count", DataTypes.BIGINT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(
+                        507,
+                        "partitions",
+                        DataTypes.ARRAY(new MetaType(508, IcebergPartitionSummary.schema()))));
         return new RowType(false, fields);
     }
 
@@ -194,22 +205,36 @@ public class IcebergManifestFileMeta {
         // see https://github.com/apache/iceberg/pull/5338
         // some reader still want old schema, for example, AWS athena
         List<DataField> fields = new ArrayList<>();
-        fields.add(new DataField(500, "manifest_path", DataTypes.STRING().notNull()));
-        fields.add(new DataField(501, "manifest_length", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(502, "partition_spec_id", DataTypes.INT().notNull()));
-        fields.add(new DataField(517, "content", DataTypes.INT().notNull()));
-        fields.add(new DataField(515, "sequence_number", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(516, "min_sequence_number", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(503, "added_snapshot_id", DataTypes.BIGINT()));
-        fields.add(new DataField(504, "added_data_files_count", DataTypes.INT().notNull()));
-        fields.add(new DataField(505, "existing_data_files_count", DataTypes.INT().notNull()));
-        fields.add(new DataField(506, "deleted_data_files_count", DataTypes.INT().notNull()));
-        fields.add(new DataField(512, "added_rows_count", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(513, "existing_rows_count", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(514, "deleted_rows_count", DataTypes.BIGINT().notNull()));
+        fields.add(IcebergSchemaField.create(500, "manifest_path", DataTypes.STRING().notNull()));
+        fields.add(IcebergSchemaField.create(501, "manifest_length", DataTypes.BIGINT().notNull()));
+        fields.add(IcebergSchemaField.create(502, "partition_spec_id", DataTypes.INT().notNull()));
+        fields.add(IcebergSchemaField.create(517, "content", DataTypes.INT().notNull()));
+        fields.add(IcebergSchemaField.create(515, "sequence_number", DataTypes.BIGINT().notNull()));
         fields.add(
-                new DataField(
-                        508, "partitions", DataTypes.ARRAY(IcebergPartitionSummary.schema())));
+                IcebergSchemaField.create(
+                        516, "min_sequence_number", DataTypes.BIGINT().notNull()));
+        fields.add(IcebergSchemaField.create(503, "added_snapshot_id", DataTypes.BIGINT()));
+        fields.add(
+                IcebergSchemaField.create(
+                        504, "added_data_files_count", DataTypes.INT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(
+                        505, "existing_data_files_count", DataTypes.INT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(
+                        506, "deleted_data_files_count", DataTypes.INT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(512, "added_rows_count", DataTypes.BIGINT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(
+                        513, "existing_rows_count", DataTypes.BIGINT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(514, "deleted_rows_count", DataTypes.BIGINT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(
+                        507,
+                        "partitions",
+                        DataTypes.ARRAY(new MetaType(508, IcebergPartitionSummary.schema()))));
         return new RowType(false, fields);
     }
 

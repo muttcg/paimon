@@ -24,6 +24,7 @@ import org.apache.paimon.data.InternalMap;
 import org.apache.paimon.data.InternalRow;
 import org.apache.paimon.iceberg.metadata.IcebergDataField;
 import org.apache.paimon.iceberg.metadata.IcebergSchema;
+import org.apache.paimon.meta.MetaType;
 import org.apache.paimon.stats.SimpleStats;
 import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataTypes;
@@ -290,30 +291,37 @@ public class IcebergDataFileMeta {
 
     public static RowType schema(RowType partitionType) {
         List<DataField> fields = new ArrayList<>();
-        fields.add(new DataField(134, "content", DataTypes.INT().notNull()));
-        fields.add(new DataField(100, "file_path", DataTypes.STRING().notNull()));
-        fields.add(new DataField(101, "file_format", DataTypes.STRING().notNull()));
-        fields.add(new DataField(102, "partition", partitionType.notNull()));
-        fields.add(new DataField(103, "record_count", DataTypes.BIGINT().notNull()));
-        fields.add(new DataField(104, "file_size_in_bytes", DataTypes.BIGINT().notNull()));
+        fields.add(IcebergSchemaField.create(134, "content", DataTypes.INT().notNull()));
+        fields.add(IcebergSchemaField.create(100, "file_path", DataTypes.STRING().notNull()));
+        fields.add(IcebergSchemaField.create(101, "file_format", DataTypes.STRING().notNull()));
+        fields.add(IcebergSchemaField.create(102, "partition", partitionType.notNull()));
+        fields.add(IcebergSchemaField.create(103, "record_count", DataTypes.BIGINT().notNull()));
         fields.add(
-                new DataField(
+                IcebergSchemaField.create(104, "file_size_in_bytes", DataTypes.BIGINT().notNull()));
+        fields.add(
+                IcebergSchemaField.create(
                         110,
                         "null_value_counts",
-                        DataTypes.MAP(DataTypes.INT().notNull(), DataTypes.BIGINT().notNull())));
+                        DataTypes.MAP(
+                                new MetaType(121, DataTypes.INT().notNull()),
+                                new MetaType(122, DataTypes.BIGINT().notNull()))));
         fields.add(
-                new DataField(
+                IcebergSchemaField.create(
                         125,
                         "lower_bounds",
-                        DataTypes.MAP(DataTypes.INT().notNull(), DataTypes.BYTES().notNull())));
+                        DataTypes.MAP(
+                                new MetaType(126, DataTypes.INT().notNull()),
+                                new MetaType(127, DataTypes.BYTES().notNull()))));
         fields.add(
-                new DataField(
+                IcebergSchemaField.create(
                         128,
                         "upper_bounds",
-                        DataTypes.MAP(DataTypes.INT().notNull(), DataTypes.BYTES().notNull())));
-        fields.add(new DataField(143, "referenced_data_file", DataTypes.STRING()));
-        fields.add(new DataField(144, "content_offset", DataTypes.BIGINT()));
-        fields.add(new DataField(145, "content_size_in_bytes", DataTypes.BIGINT()));
+                        DataTypes.MAP(
+                                new MetaType(129, DataTypes.INT().notNull()),
+                                new MetaType(130, DataTypes.BYTES().notNull()))));
+        fields.add(IcebergSchemaField.create(143, "referenced_data_file", DataTypes.STRING()));
+        fields.add(IcebergSchemaField.create(144, "content_offset", DataTypes.BIGINT()));
+        fields.add(IcebergSchemaField.create(145, "content_size_in_bytes", DataTypes.BIGINT()));
         return new RowType(false, fields);
     }
 

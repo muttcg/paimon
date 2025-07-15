@@ -112,12 +112,13 @@ public class IcebergManifestEntry {
 
     public static RowType schema(RowType partitionType) {
         List<DataField> fields = new ArrayList<>();
-        fields.add(new DataField(0, "status", DataTypes.INT().notNull()));
-        fields.add(new DataField(1, "snapshot_id", DataTypes.BIGINT()));
-        fields.add(new DataField(3, "sequence_number", DataTypes.BIGINT()));
-        fields.add(new DataField(4, "file_sequence_number", DataTypes.BIGINT()));
+        fields.add(IcebergSchemaField.create(0, "status", DataTypes.INT().notNull()));
+        fields.add(IcebergSchemaField.create(1, "snapshot_id", DataTypes.BIGINT()));
+        fields.add(IcebergSchemaField.create(3, "sequence_number", DataTypes.BIGINT()));
+        fields.add(IcebergSchemaField.create(4, "file_sequence_number", DataTypes.BIGINT()));
         fields.add(
-                new DataField(2, "data_file", IcebergDataFileMeta.schema(partitionType).notNull()));
+                IcebergSchemaField.create(
+                        2, "data_file", IcebergDataFileMeta.schema(partitionType).notNull()));
         return new RowType(false, fields);
     }
 

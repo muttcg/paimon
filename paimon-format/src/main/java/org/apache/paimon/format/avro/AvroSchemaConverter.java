@@ -18,7 +18,9 @@
 
 package org.apache.paimon.format.avro;
 
+import org.apache.paimon.meta.MetaType;
 import org.apache.paimon.types.ArrayType;
+import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataType;
 import org.apache.paimon.types.DataTypeRoot;
 import org.apache.paimon.types.DecimalType;
@@ -33,6 +35,8 @@ import org.apache.paimon.types.TimestampType;
 import org.apache.avro.LogicalTypes;
 import org.apache.avro.Schema;
 import org.apache.avro.SchemaBuilder;
+import org.apache.avro.SchemaBuilder.ArrayBuilder;
+import org.apache.avro.SchemaBuilder.FieldBuilder;
 
 import java.util.List;
 import java.util.Map;
@@ -162,21 +166,27 @@ public class AvroSchemaConverter {
                                 .addToSchema(SchemaBuilder.builder().bytesType());
                 return nullable ? nullableSchema(decimal) : decimal;
             case ROW:
-                RowType rowType = (RowType) dataType;
-                List<String> fieldNames = rowType.getFieldNames();
+                MetaType metaType = dataType instanceof MetaType ? (MetaType) dataType : null;
+                RowType rowType =
+                        metaType != null ? (RowType) metaType.getDataType() : (RowType) dataType;
+                List<DataField> fields = rowType.getFields();
                 // we have to make sure the record name is different in a Schema
                 SchemaBuilder.FieldAssembler<Schema> builder =
                         SchemaBuilder.builder().record(rowName).fields();
                 for (int i = 0; i < rowType.getFieldCount(); i++) {
-                    String fieldName = fieldNames.get(i);
+                    String fieldName = fields.get(i).name();
                     DataType fieldType = rowType.getTypeAt(i);
+
+                    FieldBuilder<Schema> name = builder.name(fieldName);
+                    if (fieldType instanceof MetaType) {
+                        MetaType fieldMetaType = (MetaType) fieldType;
+                        name.prop(fieldMetaType.getFieldIdName(), fieldMetaType.getKeyId());
+                    }
+
                     SchemaBuilder.GenericDefault<Schema> fieldBuilder =
-                            builder.name(fieldName)
-                                    .type(
-                                            convertToSchema(
-                                                    fieldType,
-                                                    rowName + "_" + fieldName,
-                                                    rowNameMapping));
+                            name.type(
+                                    convertToSchema(
+                                            fieldType, rowName + "_" + fieldName, rowNameMapping));
 
                     if (fieldType.isNullable()) {
                         builder = fieldBuilder.withDefault(null);
@@ -190,24 +200,39 @@ public class AvroSchemaConverter {
             case MAP:
                 DataType keyType = extractKeyTypeToAvroMap(dataType);
                 DataType valueType = extractValueTypeToAvroMap(dataType);
+                MetaType keyMetaType = keyType instanceof MetaType ? (MetaType) keyType : null;
+                MetaType valueMetaType =
+                        valueType instanceof MetaType ? (MetaType) valueType : null;
                 Schema map;
                 if (isArrayMap(dataType)) {
                     // Avro only natively support map with string key.
                     // To represent a map with non-string key, we use an array containing several
                     // rows. The first field of a row is the key, and the second field is the value.
-                    SchemaBuilder.GenericDefault<Schema> kvBuilder =
-                            SchemaBuilder.builder()
-                                    .record(rowName)
-                                    .fields()
-                                    .name("key")
-                                    .type(
-                                            convertToSchema(
-                                                    keyType, rowName + "_key", rowNameMapping))
+
+                    if (keyMetaType != null && valueMetaType != null) {
+                        rowName = MetaType.getKVRowName(keyMetaType, valueMetaType);
+                    }
+
+                    FieldBuilder<Schema> key =
+                            SchemaBuilder.builder().record(rowName).fields().name("key");
+
+                    if (keyMetaType != null) {
+                        key.prop(keyMetaType.getFieldIdName(), keyMetaType.getKeyId());
+                    }
+
+                    FieldBuilder<Schema> value =
+                            key.type(convertToSchema(keyType, rowName + "_key", rowNameMapping))
                                     .noDefault()
-                                    .name("value")
-                                    .type(
-                                            convertToSchema(
-                                                    valueType, rowName + "_value", rowNameMapping));
+                                    .name("value");
+
+                    if (valueMetaType != null) {
+                        value.prop(valueMetaType.getFieldIdName(), valueMetaType.getKeyId());
+                    }
+
+                    SchemaBuilder.GenericDefault<Schema> kvBuilder =
+                            value.type(
+                                    convertToSchema(valueType, rowName + "_value", rowNameMapping));
+
                     SchemaBuilder.FieldAssembler<Schema> assembler =
                             valueType.isNullable()
                                     ? kvBuilder.withDefault(null)
@@ -225,15 +250,22 @@ public class AvroSchemaConverter {
                 }
                 return nullable ? nullableSchema(map) : map;
             case ARRAY:
-                ArrayType arrayType = (ArrayType) dataType;
+                MetaType metaDataType = dataType instanceof MetaType ? (MetaType) dataType : null;
+                ArrayType arrayType =
+                        metaDataType != null
+                                ? (ArrayType) metaDataType.getDataType()
+                                : (ArrayType) dataType;
+
+                ArrayBuilder<Schema> arrayBuilder = SchemaBuilder.builder().array();
+
+                if (metaDataType != null) {
+                    arrayBuilder.prop(metaDataType.getFieldIdName(), metaDataType.getKeyId());
+                }
+
                 Schema array =
-                        SchemaBuilder.builder()
-                                .array()
-                                .items(
-                                        convertToSchema(
-                                                arrayType.getElementType(),
-                                                rowName,
-                                                rowNameMapping));
+                        arrayBuilder.items(
+                                convertToSchema(
+                                        arrayType.getElementType(), rowName, rowNameMapping));
                 return nullable ? nullableSchema(array) : array;
             default:
                 throw new UnsupportedOperationException(
@@ -251,6 +283,8 @@ public class AvroSchemaConverter {
         if (type instanceof MapType) {
             MapType mapType = (MapType) type;
             return mapType.getKeyType();
+        } else if (type instanceof MetaType) {
+            return extractKeyTypeToAvroMap(((MetaType) type).getDataType());
         } else {
             MultisetType multisetType = (MultisetType) type;
             return multisetType.getElementType();
@@ -261,6 +295,8 @@ public class AvroSchemaConverter {
         if (type instanceof MapType) {
             MapType mapType = (MapType) type;
             return mapType.getValueType();
+        } else if (type instanceof MetaType) {
+            return extractValueTypeToAvroMap(((MetaType) type).getDataType());
         } else {
             return new IntType();
         }

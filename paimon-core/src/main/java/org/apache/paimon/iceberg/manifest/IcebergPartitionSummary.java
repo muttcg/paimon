@@ -65,10 +65,10 @@ public class IcebergPartitionSummary {
 
     public static RowType schema() {
         List<DataField> fields = new ArrayList<>();
-        fields.add(new DataField(509, "contains_null", DataTypes.BOOLEAN().notNull()));
-        fields.add(new DataField(518, "contains_nan", DataTypes.BOOLEAN()));
-        fields.add(new DataField(510, "lower_bound", DataTypes.BYTES()));
-        fields.add(new DataField(511, "upper_bound", DataTypes.BYTES()));
+        fields.add(IcebergSchemaField.create(509, "contains_null", DataTypes.BOOLEAN().notNull()));
+        fields.add(IcebergSchemaField.create(518, "contains_nan", DataTypes.BOOLEAN()));
+        fields.add(IcebergSchemaField.create(510, "lower_bound", DataTypes.BYTES()));
+        fields.add(IcebergSchemaField.create(511, "upper_bound", DataTypes.BYTES()));
         return new RowType(false, fields);
     }
 
