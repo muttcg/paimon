@@ -57,6 +57,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import static org.apache.paimon.CoreOptions.MergeEngine.FIRST_ROW;
+import static org.apache.paimon.CoreOptions.OrderType.HILBERT;
+import static org.apache.paimon.CoreOptions.OrderType.ORDER;
+import static org.apache.paimon.CoreOptions.OrderType.ZORDER;
 import static org.apache.paimon.options.ConfigOptions.key;
 import static org.apache.paimon.options.MemorySize.VALUE_128_MB;
 import static org.apache.paimon.options.MemorySize.VALUE_256_MB;
@@ -679,6 +682,40 @@ public class CoreOptions implements Serializable {
                             "Percentage flexibility while comparing sorted run size for changelog mode table. If the candidate sorted run(s) "
                                     + "size is 1% smaller than the next sorted run's size, then include next sorted run "
                                     + "into this candidate set.");
+
+    public static final ConfigOption<Integer> COMPACT_OFFPEAK_START_HOUR =
+            key("compaction.offpeak.start.hour")
+                    .intType()
+                    .defaultValue(-1)
+                    .withDescription(
+                            "The start of off-peak hours, expressed as an integer between 0 and 23, inclusive"
+                                    + " Set to -1 to disable off-peak");
+
+    public static final ConfigOption<Integer> COMPACT_OFFPEAK_END_HOUR =
+            key("compaction.offpeak.end.hour")
+                    .intType()
+                    .defaultValue(-1)
+                    .withDescription(
+                            "The end of off-peak hours, expressed as an integer between 0 and 23, inclusive. Set"
+                                    + " to -1 to disable off-peak.");
+
+    public static final ConfigOption<Integer> COMPACTION_OFFPEAK_RATIO =
+            key("compaction.offpeak-ratio")
+                    .intType()
+                    .defaultValue(0)
+                    .withDescription(
+                            Description.builder()
+                                    .text(
+                                            "Allows you to set a different (by default, more aggressive) percentage ratio for determining "
+                                                    + " whether larger sorted run's size are included in compactions during off-peak hours. Works in the "
+                                                    + " same way as compaction.size-ratio. Only applies if offpeak.start.hour and "
+                                                    + " offpeak.end.hour are also enabled. ")
+                                    .linebreak()
+                                    .text(
+                                            " For instance, if your cluster experiences low pressure between 2 AM  and 6 PM , "
+                                                    + " you can configure `compaction.offpeak.start.hour=2` and `compaction.offpeak.end.hour=18` to define this period as off-peak hours. "
+                                                    + " During these hours, you can increase the off-peak compaction ratio (e.g. `compaction.offpeak-ratio=20`) to enable more aggressive data compaction")
+                                    .build());
 
     public static final ConfigOption<Duration> COMPACTION_OPTIMIZATION_INTERVAL =
             key("compaction.optimization-interval")
@@ -1835,6 +1872,28 @@ public class CoreOptions implements Serializable {
                                     + "starting from the snapshot after this one. If found, commit will be aborted. "
                                     + "If the value of this option is -1, committer will not check for its first commit.");
 
+    public static final ConfigOption<String> CLUSTERING_COLUMNS =
+            key("clustering.columns")
+                    .stringType()
+                    .noDefaultValue()
+                    .withFallbackKeys("sink.clustering.by-columns")
+                    .withDescription(
+                            "Specifies the column name(s) used for comparison during range partitioning, in the format 'columnName1,columnName2'. "
+                                    + "If not set or set to an empty string, it indicates that the range partitioning feature is not enabled. "
+                                    + "This option will be effective only for append table without primary keys and batch execution mode.");
+
+    public static final ConfigOption<String> CLUSTERING_STRATEGY =
+            key("clustering.strategy")
+                    .stringType()
+                    .defaultValue("auto")
+                    .withFallbackKeys("sink.clustering.strategy")
+                    .withDescription(
+                            "Specifies the comparison algorithm used for range partitioning, including 'zorder', 'hilbert', and 'order', "
+                                    + "corresponding to the z-order curve algorithm, hilbert curve algorithm, and basic type comparison algorithm, "
+                                    + "respectively. When not configured, it will automatically determine the algorithm based on the number of columns "
+                                    + "in 'sink.clustering.by-columns'. 'order' is used for 1 column, 'zorder' for less than 5 columns, "
+                                    + "and 'hilbert' for 5 or more columns.");
+
     private final Options options;
 
     public CoreOptions(Map<String, String> options) {
@@ -1958,7 +2017,7 @@ public class CoreOptions implements Serializable {
     }
 
     public static String normalizeFileFormat(String fileFormat) {
-        return fileFormat.toLowerCase();
+        return StringUtils.isEmpty(fileFormat) ? fileFormat : fileFormat.toLowerCase();
     }
 
     public String dataFilePrefix() {
@@ -1976,7 +2035,7 @@ public class CoreOptions implements Serializable {
 
     @Nullable
     public String changelogFileFormat() {
-        return options.get(CHANGELOG_FILE_FORMAT);
+        return normalizeFileFormat(options.get(CHANGELOG_FILE_FORMAT));
     }
 
     @Nullable
@@ -2317,6 +2376,15 @@ public class CoreOptions implements Serializable {
 
     public int sortedRunSizeRatio() {
         return options.get(COMPACTION_SIZE_RATIO);
+    }
+
+    public OffPeakHours offPeakHours() {
+        return OffPeakHours.getInstance(
+                options.get(COMPACT_OFFPEAK_START_HOUR), options.get(COMPACT_OFFPEAK_END_HOUR));
+    }
+
+    public int compactOffPeakRatio() {
+        return options.get(COMPACTION_OFFPEAK_RATIO);
     }
 
     public int compactionMinFileNum() {
@@ -2801,6 +2869,35 @@ public class CoreOptions implements Serializable {
 
     public Optional<Long> commitStrictModeLastSafeSnapshot() {
         return options.getOptional(COMMIT_STRICT_MODE_LAST_SAFE_SNAPSHOT);
+    }
+
+    public List<String> clusteringColumns() {
+        return clusteringColumns(options.get(CLUSTERING_COLUMNS));
+    }
+
+    public OrderType clusteringStrategy(int columnSize) {
+        return clusteringStrategy(options.get(CLUSTERING_STRATEGY), columnSize);
+    }
+
+    public static List<String> clusteringColumns(String clusteringColumns) {
+        if (clusteringColumns == null || clusteringColumns.isEmpty()) {
+            return Collections.emptyList();
+        }
+        return Arrays.asList(clusteringColumns.split(","));
+    }
+
+    public static OrderType clusteringStrategy(String clusteringStrategy, int columnSize) {
+        if (clusteringStrategy.equals(CLUSTERING_STRATEGY.defaultValue())) {
+            if (columnSize == 1) {
+                return ORDER;
+            } else if (columnSize < 5) {
+                return ZORDER;
+            } else {
+                return HILBERT;
+            }
+        } else {
+            return OrderType.of(clusteringStrategy);
+        }
     }
 
     /** Specifies the merge engine for table with primary key. */
