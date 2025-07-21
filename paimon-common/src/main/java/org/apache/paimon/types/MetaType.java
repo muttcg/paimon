@@ -16,10 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.paimon.meta;
-
-import org.apache.paimon.types.DataType;
-import org.apache.paimon.types.DataTypeVisitor;
+package org.apache.paimon.types;
 
 /** Internal map type to carry extra information about IDs to generate Iceberg schema correctly. */
 public class MetaType extends DataType {
@@ -35,7 +32,7 @@ public class MetaType extends DataType {
     }
 
     public MetaType(int keyId, DataType dataType) {
-        this(true, keyId, dataType);
+        this(dataType.isNullable(), keyId, dataType);
     }
 
     public DataType getDataType() {

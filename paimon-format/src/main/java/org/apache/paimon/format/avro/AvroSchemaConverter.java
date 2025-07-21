@@ -18,7 +18,6 @@
 
 package org.apache.paimon.format.avro;
 
-import org.apache.paimon.meta.MetaType;
 import org.apache.paimon.types.ArrayType;
 import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataType;
@@ -27,6 +26,7 @@ import org.apache.paimon.types.DecimalType;
 import org.apache.paimon.types.IntType;
 import org.apache.paimon.types.LocalZonedTimestampType;
 import org.apache.paimon.types.MapType;
+import org.apache.paimon.types.MetaType;
 import org.apache.paimon.types.MultisetType;
 import org.apache.paimon.types.RowType;
 import org.apache.paimon.types.TimeType;

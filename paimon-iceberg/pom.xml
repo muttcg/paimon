@@ -33,7 +33,7 @@ under the License.
 
     <properties>
         <target.java.version>11</target.java.version>
-        <iceberg.version>1.8.1</iceberg.version>
+        <iceberg.version>1.9.2</iceberg.version>
         <flink.version>${paimon-flink-common.flink.version}</flink.version>
         <iceberg.flink.version>1.19</iceberg.flink.version>
         <hive.version>2.3.10</hive.version>

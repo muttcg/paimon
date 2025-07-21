@@ -18,9 +18,9 @@
 
 package org.apache.paimon.iceberg.manifest;
 
-import org.apache.paimon.meta.MetaType;
 import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataTypes;
+import org.apache.paimon.types.MetaType;
 import org.apache.paimon.types.RowType;
 
 import java.util.ArrayList;

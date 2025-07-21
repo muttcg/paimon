@@ -20,6 +20,7 @@ package org.apache.paimon.iceberg.manifest;
 
 import org.apache.paimon.TestKeyValueGenerator;
 import org.apache.paimon.types.DataField;
+import org.apache.paimon.types.MetaType;
 import org.apache.paimon.types.RowType;
 
 import org.junit.jupiter.api.DisplayName;
@@ -43,6 +44,7 @@ class IcebergDataFileMetaTest {
 
         assertThat(partitionField).isPresent();
         assertThat(partitionField.get().name()).isEqualTo("partition");
-        assertThat(partitionField.get().type()).isEqualTo(partitionType.notNull());
+        assertThat(((MetaType) partitionField.get().type()).getDataType())
+                .isEqualTo(partitionType.notNull());
     }
 }

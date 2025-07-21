@@ -18,9 +18,9 @@
 
 package org.apache.paimon.iceberg.manifest;
 
-import org.apache.paimon.meta.MetaType;
 import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataType;
+import org.apache.paimon.types.MetaType;
 
 /** Create wrapper for Iceberg data filed with meta info. */
 public class IcebergSchemaField {

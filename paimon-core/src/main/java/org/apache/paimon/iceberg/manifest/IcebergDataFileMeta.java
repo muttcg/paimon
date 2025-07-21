@@ -24,10 +24,10 @@ import org.apache.paimon.data.InternalMap;
 import org.apache.paimon.data.InternalRow;
 import org.apache.paimon.iceberg.metadata.IcebergDataField;
 import org.apache.paimon.iceberg.metadata.IcebergSchema;
-import org.apache.paimon.meta.MetaType;
 import org.apache.paimon.stats.SimpleStats;
 import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataTypes;
+import org.apache.paimon.types.MetaType;
 import org.apache.paimon.types.RowType;
 
 import javax.annotation.Nullable;
