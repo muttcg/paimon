@@ -180,7 +180,7 @@ public class AvroSchemaConverter {
                     FieldBuilder<Schema> name = builder.name(fieldName);
                     if (fieldType instanceof MetaType) {
                         MetaType fieldMetaType = (MetaType) fieldType;
-                        name.prop(fieldMetaType.getPropName(), fieldMetaType.getPropValue());
+                        name.prop("field-id", fieldMetaType.getId());
                     }
 
                     SchemaBuilder.GenericDefault<Schema> fieldBuilder =
@@ -209,19 +209,19 @@ public class AvroSchemaConverter {
                     // To represent a map with non-string key, we use an array containing several
                     // rows. The first field of a row is the key, and the second field is the value.
 
+                    // Add required Field IDs to support ID-based column pruning.
+                    // https://iceberg.apache.org/spec/#avro
                     if (keyMetaType != null && valueMetaType != null) {
-                        rowName =
-                                "k"
-                                        + keyMetaType.getPropValue()
-                                        + "_v"
-                                        + valueMetaType.getPropValue();
+                        rowName = "k" + keyMetaType.getId() + "_v" + valueMetaType.getId();
                     }
 
                     FieldBuilder<Schema> key =
                             SchemaBuilder.builder().record(rowName).fields().name("key");
 
+                    // Add required Field IDs to support ID-based column pruning.
+                    // https://iceberg.apache.org/spec/#avro
                     if (keyMetaType != null) {
-                        key.prop(keyMetaType.getPropName(), keyMetaType.getPropValue());
+                        key.prop("field-id", keyMetaType.getId());
                     }
 
                     FieldBuilder<Schema> value =
@@ -229,8 +229,10 @@ public class AvroSchemaConverter {
                                     .noDefault()
                                     .name("value");
 
+                    // Add required Field IDs to support ID-based column pruning.
+                    // https://iceberg.apache.org/spec/#avro
                     if (valueMetaType != null) {
-                        value.prop(valueMetaType.getPropName(), valueMetaType.getPropValue());
+                        value.prop("field-id", valueMetaType.getId());
                     }
 
                     SchemaBuilder.GenericDefault<Schema> kvBuilder =
@@ -263,10 +265,11 @@ public class AvroSchemaConverter {
 
                 ArrayBuilder<Schema> arrayBuilder = SchemaBuilder.builder().array();
 
+                // Add required Field IDs to support ID-based column pruning.
+                // https://iceberg.apache.org/spec/#avro
                 if (metaDataType != null) {
                     MetaType elementMetaType = (MetaType) elementType;
-                    arrayBuilder.prop(
-                            elementMetaType.getPropName(), elementMetaType.getPropValue());
+                    arrayBuilder.prop("element-id", elementMetaType.getId());
                 }
 
                 Schema array =

@@ -26,23 +26,15 @@ import org.apache.paimon.types.MetaType;
 /** Creates wrapper for Iceberg schema filed with meta info. */
 public class IcebergSchemaField {
 
-    private static final String FIELD_ID = "field-id";
-    private static final String ELEMENT_ID = "element-id";
-
     private IcebergSchemaField() {}
 
     public static DataField create(int id, String name, DataType dataType) {
-        return new DataField(id, name, new MetaType(id, FIELD_ID, dataType));
+        return new DataField(id, name, new MetaType(id, dataType));
     }
 
     public static DataField createArray(int id, String name, int arrayId, DataType dataType) {
         return new DataField(
-                id,
-                name,
-                new MetaType(
-                        id,
-                        FIELD_ID,
-                        DataTypes.ARRAY(new MetaType(arrayId, ELEMENT_ID, dataType))));
+                id, name, new MetaType(id, DataTypes.ARRAY(new MetaType(arrayId, dataType))));
     }
 
     public static DataField createMap(
@@ -57,9 +49,8 @@ public class IcebergSchemaField {
                 name,
                 new MetaType(
                         id,
-                        FIELD_ID,
                         DataTypes.MAP(
-                                new MetaType(keyId, FIELD_ID, keyDataType),
-                                new MetaType(valueId, FIELD_ID, valueDataType))));
+                                new MetaType(keyId, keyDataType),
+                                new MetaType(valueId, valueDataType))));
     }
 }
