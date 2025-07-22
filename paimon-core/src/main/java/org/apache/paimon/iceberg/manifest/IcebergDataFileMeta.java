@@ -27,7 +27,6 @@ import org.apache.paimon.iceberg.metadata.IcebergSchema;
 import org.apache.paimon.stats.SimpleStats;
 import org.apache.paimon.types.DataField;
 import org.apache.paimon.types.DataTypes;
-import org.apache.paimon.types.MetaType;
 import org.apache.paimon.types.RowType;
 
 import javax.annotation.Nullable;
@@ -299,26 +298,29 @@ public class IcebergDataFileMeta {
         fields.add(
                 IcebergSchemaField.create(104, "file_size_in_bytes", DataTypes.BIGINT().notNull()));
         fields.add(
-                IcebergSchemaField.create(
+                IcebergSchemaField.createMap(
                         110,
                         "null_value_counts",
-                        DataTypes.MAP(
-                                new MetaType(121, DataTypes.INT().notNull()),
-                                new MetaType(122, DataTypes.BIGINT().notNull()))));
+                        121,
+                        DataTypes.INT().notNull(),
+                        122,
+                        DataTypes.BIGINT().notNull()));
         fields.add(
-                IcebergSchemaField.create(
+                IcebergSchemaField.createMap(
                         125,
                         "lower_bounds",
-                        DataTypes.MAP(
-                                new MetaType(126, DataTypes.INT().notNull()),
-                                new MetaType(127, DataTypes.BYTES().notNull()))));
+                        126,
+                        DataTypes.INT().notNull(),
+                        127,
+                        DataTypes.BYTES().notNull()));
         fields.add(
-                IcebergSchemaField.create(
+                IcebergSchemaField.createMap(
                         128,
                         "upper_bounds",
-                        DataTypes.MAP(
-                                new MetaType(129, DataTypes.INT().notNull()),
-                                new MetaType(130, DataTypes.BYTES().notNull()))));
+                        129,
+                        DataTypes.INT().notNull(),
+                        130,
+                        DataTypes.BYTES().notNull()));
         fields.add(IcebergSchemaField.create(143, "referenced_data_file", DataTypes.STRING()));
         fields.add(IcebergSchemaField.create(144, "content_offset", DataTypes.BIGINT()));
         fields.add(IcebergSchemaField.create(145, "content_size_in_bytes", DataTypes.BIGINT()));

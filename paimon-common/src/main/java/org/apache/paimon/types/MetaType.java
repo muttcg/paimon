@@ -21,34 +21,32 @@ package org.apache.paimon.types;
 /** Internal map type to carry extra information about IDs to generate Iceberg schema correctly. */
 public class MetaType extends DataType {
 
-    private final int keyId;
+    private final int propValue;
+    private final String propName;
 
     private final DataType dataType;
 
-    public MetaType(boolean isNullable, int keyId, DataType dataType) {
+    public MetaType(boolean isNullable, int propValue, String propName, DataType dataType) {
         super(isNullable, dataType.getTypeRoot());
-        this.keyId = keyId;
+        this.propValue = propValue;
+        this.propName = propName;
         this.dataType = dataType;
     }
 
-    public MetaType(int keyId, DataType dataType) {
-        this(dataType.isNullable(), keyId, dataType);
+    public MetaType(int propValue, String propName, DataType dataType) {
+        this(dataType.isNullable(), propValue, propName, dataType);
     }
 
     public DataType getDataType() {
         return dataType;
     }
 
-    public String getFieldIdName() {
-        return "field-id";
+    public String getPropName() {
+        return propName;
     }
 
-    public static String getKVRowName(MetaType k, MetaType v) {
-        return "k" + k.getKeyId() + "_v" + v.getKeyId();
-    }
-
-    public int getKeyId() {
-        return keyId;
+    public int getPropValue() {
+        return propValue;
     }
 
     @Override
@@ -58,7 +56,7 @@ public class MetaType extends DataType {
 
     @Override
     public DataType copy(boolean isNullable) {
-        return new MetaType(isNullable, keyId, dataType.copy(isNullable));
+        return new MetaType(isNullable, propValue, propName, dataType.copy(isNullable));
     }
 
     @Override

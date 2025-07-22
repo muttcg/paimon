@@ -180,7 +180,7 @@ public class AvroSchemaConverter {
                     FieldBuilder<Schema> name = builder.name(fieldName);
                     if (fieldType instanceof MetaType) {
                         MetaType fieldMetaType = (MetaType) fieldType;
-                        name.prop(fieldMetaType.getFieldIdName(), fieldMetaType.getKeyId());
+                        name.prop(fieldMetaType.getPropName(), fieldMetaType.getPropValue());
                     }
 
                     SchemaBuilder.GenericDefault<Schema> fieldBuilder =
@@ -210,14 +210,18 @@ public class AvroSchemaConverter {
                     // rows. The first field of a row is the key, and the second field is the value.
 
                     if (keyMetaType != null && valueMetaType != null) {
-                        rowName = MetaType.getKVRowName(keyMetaType, valueMetaType);
+                        rowName =
+                                "k"
+                                        + keyMetaType.getPropValue()
+                                        + "_v"
+                                        + valueMetaType.getPropValue();
                     }
 
                     FieldBuilder<Schema> key =
                             SchemaBuilder.builder().record(rowName).fields().name("key");
 
                     if (keyMetaType != null) {
-                        key.prop(keyMetaType.getFieldIdName(), keyMetaType.getKeyId());
+                        key.prop(keyMetaType.getPropName(), keyMetaType.getPropValue());
                     }
 
                     FieldBuilder<Schema> value =
@@ -226,7 +230,7 @@ public class AvroSchemaConverter {
                                     .name("value");
 
                     if (valueMetaType != null) {
-                        value.prop(valueMetaType.getFieldIdName(), valueMetaType.getKeyId());
+                        value.prop(valueMetaType.getPropName(), valueMetaType.getPropValue());
                     }
 
                     SchemaBuilder.GenericDefault<Schema> kvBuilder =
@@ -255,17 +259,18 @@ public class AvroSchemaConverter {
                         metaDataType != null
                                 ? (ArrayType) metaDataType.getDataType()
                                 : (ArrayType) dataType;
+                DataType elementType = arrayType.getElementType();
 
                 ArrayBuilder<Schema> arrayBuilder = SchemaBuilder.builder().array();
 
                 if (metaDataType != null) {
-                    arrayBuilder.prop(metaDataType.getFieldIdName(), metaDataType.getKeyId());
+                    MetaType elementMetaType = (MetaType) elementType;
+                    arrayBuilder.prop(
+                            elementMetaType.getPropName(), elementMetaType.getPropValue());
                 }
 
                 Schema array =
-                        arrayBuilder.items(
-                                convertToSchema(
-                                        arrayType.getElementType(), rowName, rowNameMapping));
+                        arrayBuilder.items(convertToSchema(elementType, rowName, rowNameMapping));
                 return nullable ? nullableSchema(array) : array;
             default:
                 throw new UnsupportedOperationException(
