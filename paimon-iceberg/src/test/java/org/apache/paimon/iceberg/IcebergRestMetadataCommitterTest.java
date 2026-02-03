@@ -415,6 +415,82 @@ public class IcebergRestMetadataCommitterTest {
     }
 
     @Test
+    public void testPartitionedNonPkSchemaEvolvedAndAddRestPropertiesLater() throws Exception {
+        RowType rowType =
+            RowType.of(
+                new DataType[] {DataTypes.INT(), DataTypes.INT()}, new String[] {"k", "pt"});
+        FileStoreTable table =
+            createPaimonNoIcebergRestTable(
+                rowType,
+                List.of("pt"),
+                List.of(),
+                -1,
+                randomFormat(),
+                Collections.emptyMap());
+
+        String commitUser = UUID.randomUUID().toString();
+        TableWriteImpl<?> write = table.newWrite(commitUser);
+        TableCommitImpl commit = table.newCommit(commitUser);
+
+        // 1: Add data
+        write.write(GenericRow.of(1, 10));
+        write.write(GenericRow.of(2, 20));
+        commit.commit(1, write.prepareCommit(false, 1));
+
+        SchemaManager schemaManager = new SchemaManager(table.fileIO(), table.location());
+
+        // 2: Evolve schema
+        // change1: add a column
+        // change2: change 'metadata.iceberg.delete-after-commit.enabled' to false
+        // change3: change 'metadata.iceberg.previous-versions-max' to 10
+        schemaManager.commitChanges(
+            SchemaChange.addColumn("v2", DataTypes.STRING()),
+            SchemaChange.setOption(IcebergOptions.METADATA_DELETE_AFTER_COMMIT.key(), "false"),
+            SchemaChange.setOption(IcebergOptions.METADATA_PREVIOUS_VERSIONS_MAX.key(), "10"));
+        table = table.copy(table.schemaManager().latest().get());
+        write.close();
+        write = table.newWrite(commitUser);
+        commit.close();
+        commit = table.newCommit(commitUser);
+
+        // 3: Add data
+        write.write(GenericRow.of(1, 11, BinaryString.fromString("one")));
+        write.write(GenericRow.of(3, 30, BinaryString.fromString("three")));
+        commit.commit(2, write.prepareCommit(false, 2));
+
+        // 4: Add Iceberg Rest
+        // change1: add iceberg rest options
+        List<SchemaChange> icebergRestSchemaChanges = getRestCatalogOptions()
+            .entrySet().stream().map(es -> SchemaChange.setOption(es.getKey(), es.getValue()))
+            .collect(Collectors.toList());
+
+        schemaManager.commitChanges(icebergRestSchemaChanges);
+        table = table.copy(table.schemaManager().latest().get());
+        write.close();
+        write = table.newWrite(commitUser);
+        commit.close();
+        commit = table.newCommit(commitUser);
+
+        // 5: Add data after adding REST Options
+        write.write(GenericRow.of(2, 21, BinaryString.fromString("two")));
+        commit.commit(3, write.prepareCommit(false, 3));
+
+
+        assertThat(getIcebergResult())
+            .containsExactlyInAnyOrder(
+                "Record(1, 10, null)", "Record(2, 20, null)", "Record(1, 11, one)", "Record(3, 30, three)", "Record(2, 21, two)");
+
+        Table icebergTable = restCatalog.loadTable(TableIdentifier.of("mydb", "t"));
+        assertThat(icebergTable.currentSnapshot().snapshotId()).isEqualTo(3);
+        // 1 metadata for createTable + 2 history metadata
+        assertThat(((BaseTable) icebergTable).operations().current().previousFiles().size())
+            .isEqualTo(3);
+
+        write.close();
+        commit.close();
+    }
+
+    @Test
     public void testSchemaChangeBeforeSync() throws Exception {
         RowType rowType =
                 RowType.of(
@@ -780,6 +856,39 @@ public class IcebergRestMetadataCommitterTest {
     }
 
     private FileStoreTable createPaimonTable(
+        RowType rowType,
+        List<String> partitionKeys,
+        List<String> primaryKeys,
+        int numBuckets,
+        String fileFormat,
+        Map<String, String> customOptions)
+        throws Exception {
+        Map<String, String> restCatalogOptions = getRestCatalogOptions();
+        restCatalogOptions.putAll(customOptions);
+        return createPaimonNoIcebergRestTable(rowType, partitionKeys, primaryKeys, numBuckets, fileFormat, restCatalogOptions);
+    }
+
+    private Map<String, String> getRestCatalogOptions() {
+        Map<String, String> options = new HashMap<>();
+        options.put(
+            IcebergOptions.METADATA_ICEBERG_STORAGE.key(), IcebergOptions.StorageType.REST_CATALOG.toString());
+        options.put(IcebergOptions.COMPACT_MIN_FILE_NUM.key(), "4");
+        options.put(IcebergOptions.COMPACT_MAX_FILE_NUM.key(), "8");
+        options.put(IcebergOptions.METADATA_DELETE_AFTER_COMMIT.key(), "true");
+        options.put(IcebergOptions.METADATA_PREVIOUS_VERSIONS_MAX.key(), "1");
+        options.put(
+            IcebergOptions.REST_CONFIG_PREFIX + CatalogProperties.URI,
+            restCatalog.properties().get(CatalogProperties.URI));
+        options.put(
+            IcebergOptions.REST_CONFIG_PREFIX + CatalogProperties.WAREHOUSE_LOCATION,
+            restCatalog.properties().get(CatalogProperties.WAREHOUSE_LOCATION));
+        options.put(
+            IcebergOptions.REST_CONFIG_PREFIX + CatalogProperties.CLIENT_POOL_SIZE,
+            restCatalog.properties().get(CatalogProperties.CLIENT_POOL_SIZE));
+        return options;
+    }
+
+    private FileStoreTable createPaimonNoIcebergRestTable(
             RowType rowType,
             List<String> partitionKeys,
             List<String> primaryKeys,
@@ -792,26 +901,9 @@ public class IcebergRestMetadataCommitterTest {
 
         Options options = new Options(customOptions);
         options.set(CoreOptions.BUCKET, numBuckets);
-        options.set(
-                IcebergOptions.METADATA_ICEBERG_STORAGE, IcebergOptions.StorageType.REST_CATALOG);
         options.set(CoreOptions.FILE_FORMAT, fileFormat);
         options.set(CoreOptions.TARGET_FILE_SIZE, MemorySize.ofKibiBytes(32));
-        options.set(IcebergOptions.COMPACT_MIN_FILE_NUM, 4);
-        options.set(IcebergOptions.COMPACT_MIN_FILE_NUM, 8);
-        options.set(IcebergOptions.METADATA_DELETE_AFTER_COMMIT, true);
-        options.set(IcebergOptions.METADATA_PREVIOUS_VERSIONS_MAX, 1);
         options.set(CoreOptions.MANIFEST_TARGET_FILE_SIZE, MemorySize.ofKibiBytes(8));
-
-        // rest-catalog options
-        options.set(
-                IcebergOptions.REST_CONFIG_PREFIX + CatalogProperties.URI,
-                restCatalog.properties().get(CatalogProperties.URI));
-        options.set(
-                IcebergOptions.REST_CONFIG_PREFIX + CatalogProperties.WAREHOUSE_LOCATION,
-                restCatalog.properties().get(CatalogProperties.WAREHOUSE_LOCATION));
-        options.set(
-                IcebergOptions.REST_CONFIG_PREFIX + CatalogProperties.CLIENT_POOL_SIZE,
-                restCatalog.properties().get(CatalogProperties.CLIENT_POOL_SIZE));
 
         org.apache.paimon.schema.Schema schema =
                 new org.apache.paimon.schema.Schema(
